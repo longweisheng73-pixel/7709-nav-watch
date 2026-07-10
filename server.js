@@ -197,7 +197,7 @@ const server = createServer(async (req, res) => {
 });
 
 function authorizeAdminRequest(req, res) {
-  if (!adminToken && isLoopbackAddress(req.socket.remoteAddress)) return true;
+  if (!adminToken && isLocalRequest(req)) return true;
 
   const authorization = req.headers.authorization || "";
   const suppliedToken = authorization.startsWith("Bearer ")
@@ -211,6 +211,23 @@ function authorizeAdminRequest(req, res) {
     message: "This endpoint requires an admin bearer token.",
   });
   return false;
+}
+
+function isLocalRequest(req) {
+  const forwardedHost = Array.isArray(req.headers["x-forwarded-host"])
+    ? req.headers["x-forwarded-host"][0]
+    : req.headers["x-forwarded-host"]?.split(",")[0];
+  const hostHeader = forwardedHost?.trim() || req.headers.host || "";
+  let hostname = "";
+
+  try {
+    hostname = new URL(`http://${hostHeader}`).hostname;
+  } catch {
+    return false;
+  }
+
+  return isLoopbackAddress(req.socket.remoteAddress) &&
+    (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]");
 }
 
 function isLoopbackAddress(address = "") {
