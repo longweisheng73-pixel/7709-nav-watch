@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: 7709-nav-watch
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: DASHBOARD_HOST
+        value: 0.0.0.0
+      - key: SNAPSHOT_CACHE_MS
+        value: 15000
+      - key: DISCOUNT_ALERT_ENABLED
+        value: 0
+      - key: PREOPEN_STRATEGY_ENABLED
+        value: 0

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>7709 NAV 实时观察</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">CSOP 7709 Watch</p>
+          <h1>南方东英 2x 做多海力士 7709</h1>
+        </div>
+        <div class="top-actions">
+          <button class="alert-toggle" id="alert-toggle" type="button">开启提醒</button>
+          <div class="status-pill" id="status-pill">
+            <span class="status-dot"></span>
+            <span id="status-text">连接中</span>
+          </div>
+          <button class="icon-button" id="refresh-button" type="button" aria-label="刷新数据" title="刷新数据">
+            <span aria-hidden="true">↻</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="alert-panel" id="discount-alert-panel">
+        <div>
+          <h2>折价提醒</h2>
+          <p id="alert-state">未开启 · 监控理论 NAV 折溢价</p>
+        </div>
+        <label class="threshold-control">
+          <span>阈值</span>
+          <input id="alert-threshold" type="number" min="0.1" max="20" step="0.1" value="2.0" />
+          <span>%</span>
+        </label>
+      </section>
+
+      <section class="discount-alert-banner" id="discount-alert-banner" hidden>
+        <strong id="discount-alert-title">折价提醒</strong>
+        <span id="discount-alert-message">--</span>
+      </section>
+
+      <section class="hero-grid">
+        <article class="price-panel primary-panel">
+          <div class="panel-label">7709 最新价</div>
+          <div class="big-price" id="product-price">--</div>
+          <div class="change-line" id="product-change">--</div>
+          <div class="mini-meta" id="product-meta">--</div>
+        </article>
+        <article class="price-panel">
+          <div class="panel-label">官方 NAV</div>
+          <div class="big-price" id="official-nav">--</div>
+          <div class="change-line" id="discount-official">--</div>
+          <div class="mini-meta" id="official-meta">--</div>
+        </article>
+        <article class="price-panel">
+          <div class="panel-label">理论 NAV</div>
+          <div class="big-price" id="theory-nav">--</div>
+          <div class="change-line" id="discount-theory">--</div>
+          <div class="mini-meta" id="theory-meta">按官方 NAV 锚点滚动估算</div>
+        </article>
+        <article class="price-panel">
+          <div class="panel-label">SK hynix 正股</div>
+          <div class="underlying-quotes">
+            <div class="underlying-row">
+              <span>常规收盘</span>
+              <strong id="underlying-regular-price">--</strong>
+              <em id="underlying-regular-change">--</em>
+            </div>
+            <div class="underlying-row">
+              <span>NXT/盘后</span>
+              <strong id="underlying-extended-price">--</strong>
+              <em id="underlying-extended-change">--</em>
+            </div>
+          </div>
+          <div class="mini-meta" id="underlying-meta">--</div>
+        </article>
+      </section>
+
+      <section class="content-grid">
+        <article class="chart-panel wide">
+          <div class="section-head">
+            <div>
+              <h2>7709 vs 理论 NAV</h2>
+              <p>橙线为 7709，蓝线为官方 NAV 锚点滚动估算；四套 NAV 口径在上方卡片对比。</p>
+            </div>
+            <div class="legend">
+              <span><i class="legend-orange"></i>7709</span>
+              <span><i class="legend-blue"></i>理论 NAV</span>
+            </div>
+          </div>
+          <svg class="line-chart" id="nav-chart" role="img" aria-label="7709 与理论 NAV 走势图"></svg>
+        </article>
+
+        <article class="chart-panel">
+          <div class="section-head compact">
+            <div>
+              <h2>正股走势</h2>
+              <p>000660.KS 近实时价格。</p>
+            </div>
+          </div>
+          <svg class="line-chart small-chart" id="underlying-chart" role="img" aria-label="SK hynix 走势"></svg>
+        </article>
+
+        <article class="calc-panel">
+          <h2>计算口径</h2>
+          <div class="formula">
+            理论 NAV = 官方 NAV × ∏(1 + 2 × 正股日涨跌幅) × KRW/HKD 修正
+          </div>
+          <dl class="metric-list">
+            <div>
+              <dt>锚点正股价</dt>
+              <dd id="anchor-underlying">--</dd>
+            </div>
+            <div>
+              <dt>KRW/HKD 修正</dt>
+              <dd id="fx-ratio">--</dd>
+            </div>
+            <div>
+              <dt>不含汇率理论 NAV</dt>
+              <dd id="theory-no-fx">--</dd>
+            </div>
+            <div>
+              <dt>当日估算杠杆</dt>
+              <dd id="leverage-today">--</dd>
+            </div>
+          </dl>
+        </article>
+      </section>
+
+      <section class="table-panel">
+        <div class="section-head">
+          <div>
+            <h2>数据源状态</h2>
+            <p>官方 NAV 是正式锚点；行情数据可能有延迟或临时不可用。</p>
+          </div>
+        </div>
+        <div class="source-grid" id="source-grid"></div>
+      </section>
+
+      <footer class="footer-note">
+        <span id="last-updated">--</span>
+        <span>本页面只做估算和观察，不构成投资建议。</span>
+      </footer>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

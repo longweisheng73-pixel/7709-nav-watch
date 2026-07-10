@@ -1,0 +1,15 @@
+{
+  "name": "7709-nav-watch",
+  "version": "1.0.0",
+  "description": "Realtime-style dashboard for CSOP SK Hynix Daily (2x) Leveraged Product 7709.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "check": "node --check server.js && node --check public/app.js",
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
