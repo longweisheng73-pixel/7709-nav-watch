@@ -3,149 +3,142 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>7709 NAV 实时观察</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <title>7709 海力士三市场监控</title>
+    <link rel="stylesheet" href="/styles.css?v=20260712-1" />
   </head>
   <body>
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">CSOP 7709 Watch</p>
-          <h1>南方东英 2x 做多海力士 7709</h1>
+          <p class="eyebrow">7709 CROSS-MARKET WATCH</p>
+          <h1>海力士三市场监控</h1>
+          <p class="subtitle">韩国正股 · 美股 ADR · 港股 7709</p>
         </div>
         <div class="top-actions">
-          <button class="alert-toggle" id="alert-toggle" type="button">开启提醒</button>
-          <div class="status-pill" id="status-pill">
-            <span class="status-dot"></span>
-            <span id="status-text">连接中</span>
-          </div>
-          <button class="icon-button" id="refresh-button" type="button" aria-label="刷新数据" title="刷新数据">
-            <span aria-hidden="true">↻</span>
-          </button>
+          <div class="status-pill" id="status-pill"><span class="status-dot"></span><span id="status-text">连接中</span></div>
+          <button class="icon-button" id="refresh-button" type="button" aria-label="刷新数据" title="刷新数据">↻</button>
         </div>
       </header>
 
-      <section class="alert-panel" id="discount-alert-panel">
-        <div>
-          <h2>折价提醒</h2>
-          <p id="alert-state">未开启 · 监控理论 NAV 折溢价</p>
+      <section class="market-grid" aria-label="三市场核心价格">
+        <article class="metric-card primary">
+          <div class="card-head"><span>香港</span><a class="source-link" id="product-source-link" href="https://gu.qq.com/hk07709" target="_blank" rel="noreferrer"><strong>7709.HK</strong><span aria-hidden="true">↗</span></a></div>
+          <div class="metric-value" id="product-price">--</div>
+          <div class="metric-change" id="product-change">--</div>
+          <div class="metric-meta" id="product-meta">--</div>
+        </article>
+        <article class="metric-card">
+          <div class="card-head"><span>韩国</span><a class="source-link" id="underlying-source-link" href="https://stock.naver.com/domestic/stock/000660/total" target="_blank" rel="noreferrer"><strong>000660</strong><span aria-hidden="true">↗</span></a></div>
+          <div class="metric-value" id="underlying-price">--</div>
+          <div class="metric-change" id="underlying-change">--</div>
+          <div class="session-line"><span>常规盘</span><b id="underlying-regular">--</b><span>NXT</span><b id="underlying-extended">--</b></div>
+          <div class="metric-meta" id="underlying-meta">--</div>
+        </article>
+        <article class="metric-card adr-card">
+          <div class="card-head"><span>美国</span><a class="source-link" id="adr-source-link" href="https://finance.yahoo.com/quote/SKHY/" target="_blank" rel="noreferrer"><strong id="adr-symbol">SKHY / SKHYV</strong><span aria-hidden="true">↗</span></a></div>
+          <div class="metric-value" id="adr-price">--</div>
+          <div class="metric-change" id="adr-change">--</div>
+          <div class="session-line"><span>盘后</span><b id="adr-after-price">--</b><span>隔夜变化</span><b id="adr-after-change">--</b></div>
+          <div class="metric-meta" id="adr-meta">--</div>
+        </article>
+        <article class="metric-card">
+          <div class="card-head"><span>CSOP</span><a class="source-link" href="https://www.csopasset.com/en/products/hk-skhy-2l" target="_blank" rel="noreferrer"><strong>官方 NAV</strong><span aria-hidden="true">↗</span></a></div>
+          <div class="metric-value" id="official-nav">--</div>
+          <div class="metric-change" id="official-spread">--</div>
+          <div class="metric-meta" id="official-meta">--</div>
+        </article>
+        <article class="metric-card">
+          <div class="card-head"><span>实时估算</span><a class="source-link" href="https://stock.naver.com/domestic/stock/000660/total" target="_blank" rel="noreferrer"><strong>理论 NAV</strong><span aria-hidden="true">↗</span></a></div>
+          <div class="metric-value" id="theory-nav">--</div>
+          <div class="metric-change" id="theory-spread">--</div>
+          <div class="metric-meta" id="theory-basis">以最新官方 NAV 为锚点滚动</div>
+        </article>
+        <article class="metric-card adr-premium-card">
+          <div class="card-head"><span>跨市场</span><a class="source-link" id="adr-premium-source-link" href="https://finance.yahoo.com/quote/SKHY/" target="_blank" rel="noreferrer"><strong>ADR 折溢价</strong><span aria-hidden="true">↗</span></a></div>
+          <div class="metric-value" id="adr-premium">--</div>
+          <div class="metric-change" id="adr-theory">--</div>
+          <div class="session-line"><span>盘后溢价</span><b id="adr-after-premium">--</b><span>正式盘</span><b id="adr-regular-price">--</b></div>
+          <div class="metric-meta" id="adr-reference">10 ADS = 1 股韩国正股</div>
+        </article>
+      </section>
+
+      <section class="decision-panel" id="decision-panel">
+        <div class="decision-main">
+          <p class="section-kicker">做 T 观察</p>
+          <h2 id="signal-title">等待三市场数据</h2>
+          <p id="signal-action">--</p>
         </div>
-        <label class="threshold-control">
-          <span>阈值</span>
-          <input id="alert-threshold" type="number" min="0.1" max="20" step="0.1" value="2.0" />
-          <span>%</span>
-        </label>
+        <div class="signal-checks">
+          <div><span>ADR 溢价 ≥ 3%</span><b id="check-adr">--</b></div>
+          <div><span>7709 超额涨幅 &gt; 2%</span><b id="check-excess">--</b></div>
+          <div><span>理论 NAV 溢价 ≥ 2%</span><b id="check-theory">--</b></div>
+        </div>
       </section>
 
-      <section class="discount-alert-banner" id="discount-alert-banner" hidden>
-        <strong id="discount-alert-title">折价提醒</strong>
-        <span id="discount-alert-message">--</span>
-      </section>
-
-      <section class="hero-grid">
-        <article class="price-panel primary-panel">
-          <div class="panel-label">7709 最新价</div>
-          <div class="big-price" id="product-price">--</div>
-          <div class="change-line" id="product-change">--</div>
-          <div class="mini-meta" id="product-meta">--</div>
-        </article>
-        <article class="price-panel">
-          <div class="panel-label">官方 NAV</div>
-          <div class="big-price" id="official-nav">--</div>
-          <div class="change-line" id="discount-official">--</div>
-          <div class="mini-meta" id="official-meta">--</div>
-        </article>
-        <article class="price-panel">
-          <div class="panel-label">理论 NAV</div>
-          <div class="big-price" id="theory-nav">--</div>
-          <div class="change-line" id="discount-theory">--</div>
-          <div class="mini-meta" id="theory-meta">按官方 NAV 锚点滚动估算</div>
-        </article>
-        <article class="price-panel">
-          <div class="panel-label">SK hynix 正股</div>
-          <div class="underlying-quotes">
-            <div class="underlying-row">
-              <span>常规收盘</span>
-              <strong id="underlying-regular-price">--</strong>
-              <em id="underlying-regular-change">--</em>
-            </div>
-            <div class="underlying-row">
-              <span>NXT/盘后</span>
-              <strong id="underlying-extended-price">--</strong>
-              <em id="underlying-extended-change">--</em>
-            </div>
-          </div>
-          <div class="mini-meta" id="underlying-meta">--</div>
-        </article>
-      </section>
-
-      <section class="content-grid">
-        <article class="chart-panel wide">
-          <div class="section-head">
-            <div>
-              <h2>7709 vs 理论 NAV</h2>
-              <p>橙线为 7709，蓝线为官方 NAV 锚点滚动估算；四套 NAV 口径在上方卡片对比。</p>
-            </div>
-            <div class="legend">
-              <span><i class="legend-orange"></i>7709</span>
-              <span><i class="legend-blue"></i>理论 NAV</span>
-            </div>
-          </div>
-          <svg class="line-chart" id="nav-chart" role="img" aria-label="7709 与理论 NAV 走势图"></svg>
-        </article>
-
-        <article class="chart-panel">
-          <div class="section-head compact">
-            <div>
-              <h2>正股走势</h2>
-              <p>000660.KS 近实时价格。</p>
-            </div>
-          </div>
-          <svg class="line-chart small-chart" id="underlying-chart" role="img" aria-label="SK hynix 走势"></svg>
-        </article>
-
-        <article class="calc-panel">
-          <h2>计算口径</h2>
-          <div class="formula">
-            理论 NAV = 官方 NAV × ∏(1 + 2 × 正股日涨跌幅) × KRW/HKD 修正
-          </div>
-          <dl class="metric-list">
-            <div>
-              <dt>锚点正股价</dt>
-              <dd id="anchor-underlying">--</dd>
-            </div>
-            <div>
-              <dt>KRW/HKD 修正</dt>
-              <dd id="fx-ratio">--</dd>
-            </div>
-            <div>
-              <dt>不含汇率理论 NAV</dt>
-              <dd id="theory-no-fx">--</dd>
-            </div>
-            <div>
-              <dt>当日估算杠杆</dt>
-              <dd id="leverage-today">--</dd>
-            </div>
+      <section class="detail-grid">
+        <article class="panel holdings-panel">
+          <div class="section-head"><div><p class="section-kicker">个人持仓</p><h2>7709 持仓与 T 仓</h2></div></div>
+          <dl class="data-list">
+            <div><dt>持仓</dt><dd id="holding-quantity">--</dd></div>
+            <div><dt>成本</dt><dd id="holding-cost">--</dd></div>
+            <div><dt>当前市值</dt><dd id="holding-value">--</dd></div>
+            <div><dt>浮动盈亏</dt><dd id="holding-pnl">--</dd></div>
+            <div><dt>累计做 T 收益</dt><dd id="holding-t-profit">--</dd></div>
+            <div><dt>仓位划分</dt><dd id="holding-split">--</dd></div>
           </dl>
         </article>
+
+        <article class="panel path-panel">
+          <div class="section-head path-head">
+          <div><p class="section-kicker">历史表现</p><h2>杠杆路径与跟踪偏差</h2></div>
+            <div class="period-tabs" id="period-tabs"></div>
+          </div>
+          <div class="custom-period">
+            <label><span>起始日期</span><input id="path-start-date" type="date" /></label>
+            <span class="date-arrow">→</span>
+            <label><span>结束日期</span><input id="path-end-date" type="date" /></label>
+            <button id="apply-custom-period" type="button">计算自定义区间</button>
+          </div>
+          <div class="path-summary">
+            <div><span>海力士</span><strong id="path-underlying">--</strong></div>
+            <div><span>区间简单 2 倍</span><strong id="path-simple-double">--</strong></div>
+            <div><span>理论每日 2 倍</span><strong id="path-theory">--</strong></div>
+            <div><span>7709 实际</span><strong id="path-actual">--</strong></div>
+            <div class="path-result"><span>复利路径损益</span><strong id="path-effect">--</strong></div>
+            <div class="path-result"><span>相对简单两倍总偏差</span><strong id="path-simple-deviation">--</strong></div>
+            <div class="path-result"><span>相对每日两倍跟踪偏差</span><strong id="path-deviation">--</strong></div>
+          </div>
+          <p class="path-status" id="path-status">数据加载中</p>
+          <details class="formula-details">
+            <summary>理论每日两倍如何计算</summary>
+            <div class="formula-content">
+              <p>先计算海力士每个交易日相对前一日的涨跌幅 <code>r₁、r₂……rₙ</code>，然后让理论产品每天获得当日涨跌幅的两倍。</p>
+              <p class="formula-line">理论累计收益 = (1 + 2r₁) × (1 + 2r₂) × … × (1 + 2rₙ) − 1</p>
+              <p>区间简单两倍 = 海力士整个区间累计收益 × 2。它只作为直观参照，不是7709的实际跟踪目标。</p>
+              <p>它不是把整个区间的海力士涨跌幅直接乘以 2。每日杠杆会重置，第二天是在第一天变化后的净值上继续计算。</p>
+              <p>复利路径损益 = 理论每日两倍 − 区间简单两倍，反映每日重置与价格路径产生的影响。</p>
+              <p>相对简单两倍总偏差 = 7709实际收益 − 区间简单两倍，包含路径损益与产品跟踪差异。</p>
+              <p>相对每日两倍跟踪偏差 = 7709实际收益 − 理论每日两倍。该差值还会包含折溢价、汇率、费用和跟踪误差。</p>
+              <p>对账关系：相对简单两倍总偏差 = 复利路径损益 + 相对每日两倍跟踪偏差。</p>
+            </div>
+          </details>
+        </article>
       </section>
 
-      <section class="table-panel">
-        <div class="section-head">
-          <div>
-            <h2>数据源状态</h2>
-            <p>官方 NAV 是正式锚点；行情数据可能有延迟或临时不可用。</p>
-          </div>
+      <section class="panel method-panel">
+        <div><p class="section-kicker">计算口径</p><h2>价格关系</h2></div>
+        <div class="method-grid">
+          <p><strong>ADR 理论价</strong><span>韩国股价 ÷ USD/KRW ÷ 10</span></p>
+          <p><strong>ADR 折溢价</strong><span>ADR 实际价 ÷ ADR 理论价 − 1</span></p>
+          <p><strong>7709 偏离</strong><span>7709 市价 ÷ 理论 NAV − 1</span></p>
         </div>
-        <div class="source-grid" id="source-grid"></div>
       </section>
 
       <footer class="footer-note">
         <span id="last-updated">--</span>
-        <span>本页面只做估算和观察，不构成投资建议。</span>
+        <span>数据仅供观察和计算，不构成投资建议。</span>
       </footer>
     </main>
-
-    <script src="/app.js" type="module"></script>
+    <script src="/app.js?v=20260712-2" type="module"></script>
   </body>
 </html>

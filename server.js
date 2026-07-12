@@ -15,6 +15,10 @@ const preferredPort = Number(process.env.DASHBOARD_PORT || process.env.PORT || 5
 const listenHost = process.env.DASHBOARD_HOST || "0.0.0.0";
 const snapshotCacheMs = Number(process.env.SNAPSHOT_CACHE_MS || 15000);
 const adminToken = process.env.ADMIN_TOKEN || "";
+const holdingQuantity = Number(process.env.HOLDING_QUANTITY || 85);
+const holdingCost = Number(process.env.HOLDING_COST || 148.395);
+const holdingTProfit = Number(process.env.HOLDING_T_PROFIT || 442);
+const holdingTQuantity = Number(process.env.HOLDING_T_QUANTITY || 17);
 const phoneAlertThresholdPct = Number(process.env.DISCOUNT_ALERT_THRESHOLD_PCT || 2);
 const phoneAlertStepPct = Number(process.env.DISCOUNT_ALERT_STEP_PCT || 1);
 const phoneAlertConfirmRefreshes = Number(process.env.DISCOUNT_ALERT_CONFIRM_REFRESHES || 2);
@@ -38,6 +42,9 @@ const YAHOO_CHART_HOSTS = [
   "https://query2.finance.yahoo.com/v8/finance/chart",
 ];
 const HYNIX_SYMBOL = "000660.KS";
+const HYNIX_ADR_SYMBOL = "SKHY";
+const HYNIX_ADR_WHEN_ISSUED_SYMBOL = "SKHYV";
+const HYNIX_ADS_PER_COMMON_SHARE = 10;
 const NAVER_HYNIX_CODE = "000660";
 const NAVER_HYNIX_PAGE = "https://stock.naver.com/domestic/stock/000660/total";
 const NAVER_HYNIX_MOBILE_PAGE = "https://m.stock.naver.com/domestic/stock/000660/total";
@@ -288,7 +295,7 @@ async function serveStatic(pathname, res) {
     const content = await readFile(filePath);
     res.writeHead(200, {
       "content-type": mimeTypes[extname(filePath)] || "application/octet-stream",
-      "cache-control": "no-cache",
+      "cache-control": "no-store",
     });
     res.end(content);
   } catch {
@@ -978,6 +985,9 @@ async function buildSnapshot() {
     hynixDaily,
     fxIntraday,
     fxDaily,
+    adrIntraday,
+    usdKrwIntraday,
+    productDaily,
   ] = await Promise.all([
     fetchOfficialNav(),
     fetchProductIntraday(),
@@ -985,6 +995,13 @@ async function buildSnapshot() {
     fetchHynixDaily(),
     fetchKrwHkdChart("5d", "5m"),
     fetchKrwHkdChart("1mo", "1d"),
+    fetchHynixAdrIntraday().catch((error) => ({
+      symbol: HYNIX_ADR_SYMBOL,
+      chart: {},
+      error: error instanceof Error ? error.message : String(error),
+    })),
+    fetchYahooChart("KRW=X", "5d", "5m").catch(() => ({})),
+    fetchProductDaily().catch(() => ({})),
   ]);
 
   const productQuote = normalizeProductQuote(productIntraday);
@@ -993,6 +1010,11 @@ async function buildSnapshot() {
   const hynixQuote = normalizeHynixQuote(hynixIntraday, hynixDailyPoints);
   const fxQuote = extractQuote(fxIntraday, "KRWHKD=X");
   const fxDailyPoints = extractSeries(fxDaily, "UTC");
+  const adrQuote = normalizeAdrQuote(adrIntraday);
+  const usdKrwQuote = extractQuote(usdKrwIntraday || {}, "KRW=X");
+  const theoreticalAdr = computeTheoreticalAdr(hynixQuote.price, usdKrwQuote.price);
+  const adrPremium = ratio(adrQuote.regularPrice ?? adrQuote.price, theoreticalAdr);
+  const productDailyPoints = extractAdjustedSeries(productDaily || {}, "Asia/Hong_Kong");
 
   const anchorUnderlying = findPointOnDate(hynixDailyPoints, officialNav.date);
   const anchorFx = findPointOnOrBefore(fxDailyPoints, officialNav.date);
@@ -1047,6 +1069,15 @@ async function buildSnapshot() {
     theoreticalNoFx: rollingNoFx.value ?? simpleNoFx,
     productPrice,
   });
+  const pathDeviations = buildPathDeviations(productDailyPoints, hynixDailyPoints);
+  const holdings = buildHoldingSnapshot(productPrice);
+  const tSignal = buildCrossMarketSignal({
+    adrPremium,
+    productChange: productQuote.changePercent,
+    underlyingChange: hynixQuote.regularChangePercent ?? hynixQuote.changePercent,
+    theorySpread: ratio(productPrice, theoretical),
+    tQuantity: holdingTQuantity,
+  });
 
   return {
     generatedAt: new Date().toISOString(),
@@ -1062,8 +1093,37 @@ async function buildSnapshot() {
     quotes: {
       product: productQuote,
       underlying: hynixQuote,
+      adr: adrQuote,
+      usdKrw: usdKrwQuote,
       fx: fxQuote,
     },
+    adrAnalysis: {
+      adsPerCommonShare: HYNIX_ADS_PER_COMMON_SHARE,
+      commonSharesPerAds: 1 / HYNIX_ADS_PER_COMMON_SHARE,
+      theoreticalPrice: theoreticalAdr,
+      actualPrice: adrQuote.regularPrice ?? adrQuote.price,
+      premium: adrPremium,
+      koreanReferencePrice: hynixQuote.price,
+      usdKrw: usdKrwQuote.price,
+      referenceSession: hynixQuote.session,
+      afterHoursPrice: adrQuote.afterHoursPrice,
+      afterHoursChangePercent: adrQuote.afterHoursChangePercent,
+      afterHoursPremium: ratio(adrQuote.afterHoursPrice, theoreticalAdr),
+      note: "1 ADS = 0.1 股韩国普通股；SKHYV 为 when-issued，SKHY 为 regular-way。",
+    },
+    theoreticalNavBasis: {
+      market: hynixQuote.session,
+      price: hynixQuote.price,
+      regularClose: hynixQuote.regularPrice,
+      extendedPrice: hynixQuote.extendedPrice,
+    },
+    pathDeviations,
+    pathHistory: {
+      product: productDailyPoints,
+      underlying: hynixDailyPoints,
+    },
+    holdings,
+    tSignal,
     calculation: {
       method: "CSOP official HKD NAV anchor x daily 2x rolling SK hynix returns x KRW/HKD FX ratio",
       leverage: 2,
@@ -1086,6 +1146,7 @@ async function buildSnapshot() {
       discountToOfficial: ratio(productPrice, officialNav.hkdNav),
       productDayChangePct: productQuote.changePercent,
       underlyingDayChangePct: hynixQuote.changePercent,
+      adrPremium,
       estimatedLeverageToday:
         isFiniteNumber(productQuote.changePercent) && isFiniteNumber(hynixQuote.changePercent)
           ? productQuote.changePercent / hynixQuote.changePercent
@@ -1117,6 +1178,11 @@ async function buildSnapshot() {
           hynixQuote.source === "Naver Pay Securities"
           ? "000660.KS 正股分钟线及盘后/NXT 价格优先源"
             : "000660.KS 正股源暂回退到 Yahoo Finance",
+      },
+      {
+        name: "Nasdaq / Yahoo Finance",
+        url: "https://finance.yahoo.com/quote/SKHY/",
+        role: `${adrQuote.symbol || HYNIX_ADR_SYMBOL} ADR 行情；1 ADS = 0.1 股韩国普通股`,
       },
       {
         name: "Yahoo Finance chart endpoint",
@@ -1296,6 +1362,34 @@ async function fetchProductIntraday() {
   }
 }
 
+async function fetchProductDaily() {
+  return fetchYahooChart(PRODUCT_SYMBOL, "1y", "1d");
+}
+
+async function fetchHynixAdrIntraday() {
+  const symbols = [HYNIX_ADR_SYMBOL, HYNIX_ADR_WHEN_ISSUED_SYMBOL];
+  const results = await Promise.allSettled(
+    symbols.map(async (symbol) => ({
+      symbol,
+      chart: await fetchYahooChart(symbol, "5d", "1m", true),
+    })),
+  );
+
+  const available = results
+    .filter((result) => result.status === "fulfilled")
+    .map((result) => result.value)
+    .filter((item) => isFiniteNumber(extractQuote(item.chart, item.symbol).price));
+
+  if (!available.length) throw new Error("SK hynix ADR quote unavailable");
+
+  available.sort((left, right) => {
+    const leftTime = extractQuote(left.chart, left.symbol).timestamp || 0;
+    const rightTime = extractQuote(right.chart, right.symbol).timestamp || 0;
+    return rightTime - leftTime;
+  });
+  return available[0];
+}
+
 async function fetchTencentText(url) {
   const headers = {
     ...fetchHeaders,
@@ -1332,11 +1426,11 @@ async function fetchTencentJson(url) {
   return JSON.parse(text);
 }
 
-async function fetchYahooChart(symbol, range, interval) {
+async function fetchYahooChart(symbol, range, interval, includePrePost = false) {
   const query = new URLSearchParams({
     range,
     interval,
-    includePrePost: "false",
+    includePrePost: String(includePrePost),
     events: "div,splits",
   });
 
@@ -1425,7 +1519,7 @@ async function fetchHynixIntraday() {
 }
 
 async function fetchHynixDaily() {
-  const start = compactDateInZone(Date.now() - 45 * 24 * 60 * 60 * 1000, "Asia/Seoul");
+  const start = compactDateInZone(Date.now() - 400 * 24 * 60 * 60 * 1000, "Asia/Seoul");
   const end = compactDateInZone(Date.now() + 24 * 60 * 60 * 1000, "Asia/Seoul");
   const url = `${NAVER_HYNIX_CHART_API}/day?startDateTime=${start}0000&endDateTime=${end}2359`;
 
@@ -2086,6 +2180,220 @@ function extractSeries(chart, timeZone) {
   }
 
   return points;
+}
+
+function extractAdjustedSeries(chart, timeZone) {
+  const timestamps = chart.timestamp || [];
+  const closes = chart.indicators?.quote?.[0]?.close || [];
+  const adjustedCloses = chart.indicators?.adjclose?.[0]?.adjclose || [];
+  const points = [];
+
+  for (let index = 0; index < timestamps.length; index += 1) {
+    const close = toNumber(adjustedCloses[index]) ?? toNumber(closes[index]);
+    if (!isFiniteNumber(close)) continue;
+    const t = timestamps[index] * 1000;
+    points.push({ date: dateInZone(t, timeZone), t, close });
+  }
+
+  return points;
+}
+
+function normalizeAdrQuote(source) {
+  const symbol = source?.symbol || HYNIX_ADR_SYMBOL;
+  const chart = source?.chart || source || {};
+  const quote = extractQuote(chart, symbol);
+  const meta = chart.meta || {};
+  const regularPrice = toNumber(meta.regularMarketPrice) ?? quote.price;
+  const regularTimestamp = isFiniteNumber(toNumber(meta.regularMarketTime))
+    ? toNumber(meta.regularMarketTime) * 1000
+    : quote.timestamp;
+  const post = meta.currentTradingPeriod?.post;
+  const postStart = isFiniteNumber(toNumber(post?.start)) ? toNumber(post.start) * 1000 : regularTimestamp;
+  const postEnd = isFiniteNumber(toNumber(post?.end)) ? toNumber(post.end) * 1000 : null;
+  const postPoints = (quote.points || []).filter((point) =>
+    isFiniteNumber(point.close) && isFiniteNumber(postStart) && point.t >= postStart &&
+    (!isFiniteNumber(postEnd) || point.t <= postEnd));
+  const afterHours = postPoints.at(-1);
+
+  return {
+    ...quote,
+    price: regularPrice,
+    timestamp: regularTimestamp,
+    change: isFiniteNumber(regularPrice) && isFiniteNumber(quote.previousClose) ? regularPrice - quote.previousClose : null,
+    changePercent: ratio(regularPrice, quote.previousClose),
+    regularPrice,
+    regularTimestamp,
+    afterHoursPrice: afterHours?.close ?? null,
+    afterHoursTimestamp: afterHours?.t ?? null,
+    afterHoursChangePercent: ratio(afterHours?.close, regularPrice),
+    name: "SK hynix ADR",
+    currency: "USD",
+    source: "Yahoo Finance / Nasdaq",
+    url: `https://finance.yahoo.com/quote/${symbol}/`,
+    tradingMode: symbol === HYNIX_ADR_WHEN_ISSUED_SYMBOL ? "when-issued" : "regular-way",
+  };
+}
+
+function computeTheoreticalAdr(koreanPrice, usdKrw) {
+  if (!isFiniteNumber(koreanPrice) || !isFiniteNumber(usdKrw) || usdKrw <= 0) return null;
+  return koreanPrice / usdKrw / HYNIX_ADS_PER_COMMON_SHARE;
+}
+
+function buildPathDeviations(productPoints, underlyingPoints) {
+  const periods = [
+    { id: "5d", label: "5日", days: 5 },
+    { id: "20d", label: "20日", days: 20 },
+    { id: "60d", label: "60日", days: 60 },
+    { id: "inception", label: "成立以来", days: null },
+  ];
+
+  return periods.map((period) => calculatePathDeviation(productPoints, underlyingPoints, period));
+}
+
+function calculatePathDeviation(productPoints, underlyingPoints, period) {
+  const products = (productPoints || []).filter((point) => point.date && isFiniteNumber(point.close));
+  if (products.length < 2) return unavailablePathDeviation(period);
+
+  const startIndex = period.days ? Math.max(0, products.length - 1 - period.days) : 0;
+  const productSlice = products.slice(startIndex);
+  const startProduct = productSlice[0];
+  const endProduct = productSlice.at(-1);
+  const underlying = (underlyingPoints || []).filter(
+    (point) => point.date && isFiniteNumber(point.close) && point.date <= endProduct.date,
+  );
+  let underlyingStartIndex = underlying.findLastIndex((point) => point.date <= startProduct.date);
+  if (underlyingStartIndex < 0) underlyingStartIndex = 0;
+  const underlyingSlice = underlying.slice(underlyingStartIndex);
+  if (underlyingSlice.length < 2) return unavailablePathDeviation(period);
+
+  let theoreticalFactor = 1;
+  for (let index = 1; index < underlyingSlice.length; index += 1) {
+    const dailyReturn = underlyingSlice[index].close / underlyingSlice[index - 1].close - 1;
+    theoreticalFactor *= 1 + 2 * dailyReturn;
+  }
+
+  const actualReturn = endProduct.close / startProduct.close - 1;
+  const theoreticalReturn = theoreticalFactor - 1;
+  const underlyingReturn = underlyingSlice.at(-1).close / underlyingSlice[0].close - 1;
+  const simpleDoubleReturn = underlyingReturn * 2;
+  const pathEffect = theoreticalReturn - simpleDoubleReturn;
+  const simpleDeviation = actualReturn - simpleDoubleReturn;
+  const deviation = actualReturn - theoreticalReturn;
+  const status = pathEffect > 0.01 ? "路径复利收益" : pathEffect < -0.01 ? "波动路径损耗" : "路径影响较小";
+
+  return {
+    ...period,
+    startDate: startProduct.date,
+    endDate: endProduct.date,
+    observations: productSlice.length,
+    underlyingReturn,
+    simpleDoubleReturn,
+    theoreticalReturn,
+    actualReturn,
+    pathEffect,
+    simpleDeviation,
+    deviation,
+    trackingStatus: deviation > 0.01 ? "正跟踪偏差" : deviation < -0.01 ? "负跟踪偏差" : "接近理论跟踪",
+    status,
+    available: true,
+  };
+}
+
+function unavailablePathDeviation(period) {
+  return {
+    ...period,
+    startDate: null,
+    endDate: null,
+    observations: 0,
+    underlyingReturn: null,
+    simpleDoubleReturn: null,
+    theoreticalReturn: null,
+    actualReturn: null,
+    pathEffect: null,
+    simpleDeviation: null,
+    deviation: null,
+    trackingStatus: "数据不足",
+    status: "数据不足",
+    available: false,
+  };
+}
+
+function buildHoldingSnapshot(productPrice) {
+  const costValue = holdingQuantity * holdingCost;
+  const marketValue = isFiniteNumber(productPrice) ? holdingQuantity * productPrice : null;
+  const unrealizedPnl = isFiniteNumber(marketValue) ? marketValue - costValue : null;
+
+  return {
+    quantity: holdingQuantity,
+    cost: holdingCost,
+    costValue,
+    marketValue,
+    unrealizedPnl,
+    unrealizedPnlPercent: isFiniteNumber(marketValue) ? marketValue / costValue - 1 : null,
+    tProfit: holdingTProfit,
+    coreQuantity: Math.max(0, holdingQuantity - holdingTQuantity),
+    tQuantity: holdingTQuantity,
+  };
+}
+
+function buildCrossMarketSignal({ adrPremium, productChange, underlyingChange, theorySpread, tQuantity }) {
+  const expectedProductChange = isFiniteNumber(underlyingChange) ? underlyingChange * 2 : null;
+  const excessMove =
+    isFiniteNumber(productChange) && isFiniteNumber(expectedProductChange)
+      ? productChange - expectedProductChange
+      : null;
+  const checks = {
+    adrPremium: isFiniteNumber(adrPremium) && adrPremium >= 0.03,
+    excessMove: isFiniteNumber(excessMove) && excessMove > 0.02,
+    theoryPremium: isFiniteNumber(theorySpread) && theorySpread >= 0.02,
+  };
+  const matched = Object.values(checks).filter(Boolean).length;
+
+  if (matched === 3) {
+    return {
+      level: "high",
+      title: "可能高估，关注卖出 T 仓",
+      action: `三项条件同时满足；仅考虑 ${tQuantity} 份 T 仓，不动核心仓。`,
+      checks,
+      matched,
+      expectedProductChange,
+      excessMove,
+    };
+  }
+
+  if (isFiniteNumber(theorySpread) && theorySpread <= -0.02) {
+    return {
+      level: "discount",
+      title: "7709 处于理论折价",
+      action: "先确认 ADR 与韩国正股方向，再考虑接回 T 仓。",
+      checks,
+      matched,
+      expectedProductChange,
+      excessMove,
+    };
+  }
+
+  if (checks.adrPremium) {
+    return {
+      level: "watch",
+      title: "ADR 提前走强，等待韩股确认",
+      action: "ADR 是方向线索，不单独构成卖点；观察 7709 是否高于理论 NAV。",
+      checks,
+      matched,
+      expectedProductChange,
+      excessMove,
+    };
+  }
+
+  return {
+    level: "neutral",
+    title: "暂无高确定性做 T 偏离",
+    action: "维持观察，优先等待三市场价格关系拉开。",
+    checks,
+    matched,
+    expectedProductChange,
+    excessMove,
+  };
 }
 
 function computeRollingNav({
