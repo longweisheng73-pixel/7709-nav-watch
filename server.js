@@ -15,10 +15,11 @@ const preferredPort = Number(process.env.DASHBOARD_PORT || process.env.PORT || 5
 const listenHost = process.env.DASHBOARD_HOST || "0.0.0.0";
 const snapshotCacheMs = Number(process.env.SNAPSHOT_CACHE_MS || 15000);
 const adminToken = process.env.ADMIN_TOKEN || "";
-const holdingQuantity = Number(process.env.HOLDING_QUANTITY || 85);
-const holdingCost = Number(process.env.HOLDING_COST || 148.395);
-const holdingTProfit = Number(process.env.HOLDING_T_PROFIT || 442);
-const holdingTQuantity = Number(process.env.HOLDING_T_QUANTITY || 17);
+const showPersonalHoldings = process.env.SHOW_PERSONAL_HOLDINGS === "1";
+const holdingQuantity = Number(process.env.HOLDING_QUANTITY);
+const holdingCost = Number(process.env.HOLDING_COST);
+const holdingTProfit = Number(process.env.HOLDING_T_PROFIT);
+const holdingTQuantity = Number(process.env.HOLDING_T_QUANTITY);
 const phoneAlertThresholdPct = Number(process.env.DISCOUNT_ALERT_THRESHOLD_PCT || 2);
 const phoneAlertStepPct = Number(process.env.DISCOUNT_ALERT_STEP_PCT || 1);
 const phoneAlertConfirmRefreshes = Number(process.env.DISCOUNT_ALERT_CONFIRM_REFRESHES || 2);
@@ -1070,13 +1071,13 @@ async function buildSnapshot() {
     productPrice,
   });
   const pathDeviations = buildPathDeviations(productDailyPoints, hynixDailyPoints);
-  const holdings = buildHoldingSnapshot(productPrice);
+  const holdings = showPersonalHoldings ? buildHoldingSnapshot(productPrice) : null;
   const tSignal = buildCrossMarketSignal({
     adrPremium,
     productChange: productQuote.changePercent,
     underlyingChange: hynixQuote.regularChangePercent ?? hynixQuote.changePercent,
     theorySpread: ratio(productPrice, theoretical),
-    tQuantity: holdingTQuantity,
+    tQuantity: showPersonalHoldings && isFiniteNumber(holdingTQuantity) ? holdingTQuantity : 0,
   });
 
   return {

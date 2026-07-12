@@ -18,3 +18,5 @@ services:
         value: 0
       - key: PREOPEN_STRATEGY_ENABLED
         value: 0
+      - key: SHOW_PERSONAL_HOLDINGS
+        value: 0

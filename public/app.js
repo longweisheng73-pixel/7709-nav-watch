@@ -77,7 +77,7 @@ function renderSnapshot(data) {
   text("#adr-reference", `${money(data.adrAnalysis?.koreanReferencePrice, "KRW", 0)} · USD/KRW ${number(data.adrAnalysis?.usdKrw, 2)} · 10 ADS = 1 股`);
 
   renderSignal(data.tSignal || {});
-  renderHoldings(data.holdings || {});
+  renderHoldings(data.holdings);
   initializeCustomDates(data.pathHistory?.product || []);
   if (selectedPeriod === "custom") customPath = calculateCustomPath();
   renderPeriodTabs(data.pathDeviations || []);
@@ -103,6 +103,9 @@ function renderCheck(selector, passed, threshold, value) {
 }
 
 function renderHoldings(holding) {
+  const panel = document.querySelector("#holdings-panel");
+  panel.hidden = !holding;
+  if (!holding) return;
   text("#holding-quantity", `${number(holding.quantity, 0)} 份`);
   text("#holding-cost", money(holding.cost, "HKD", 3));
   text("#holding-value", money(holding.marketValue, "HKD"));
