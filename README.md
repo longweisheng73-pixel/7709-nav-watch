@@ -1,11 +1,13 @@
-﻿# 7709 NAV Watch
+# 7709 NAV Watch
 
-一个用于观察南方东英 SK 海力士每日杠杆 2x 产品 `7709.HK` 的实时看板和 JSON API。
+一个用于观察海力士三方市场的实时看板和 JSON API：港股南方东英每日杠杆 2x 产品 `7709.HK`、韩国正股 `000660.KS`，以及美股 `SKHY` / `SKHYV` ADR。页面同时比较 CSOP 官方 NAV、理论 NAV、ADR 折溢价和各口径偏离。
 
 页面展示：
 
 - `7709.HK` 最新价、涨跌、成交量
 - 韩国正股 `000660.KS` 最新价
+- 美股 `SKHY` / `SKHYV` ADR 正式盘、盘前/盘后价格和涨跌
+- 韩国正股与美股 ADR 的理论换算价及 ADR 折溢价
 - CSOP 官方 HKD NAV
 - 以最新官方 NAV 为锚点推算的理论 NAV
 - CSOP 官网盘中 iNAV 状态
