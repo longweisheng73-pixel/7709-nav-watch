@@ -55,9 +55,10 @@ function renderSnapshot(data) {
   setLink("#adr-premium-source-link", adr.url);
   text("#adr-price", money(adr.regularPrice ?? adr.price, "USD"));
   renderChange("#adr-change", adr.changePercent);
-  text("#adr-after-price", money(adr.afterHoursPrice, "USD"));
-  text("#adr-after-change", percent(adr.afterHoursChangePercent));
-  tone(document.querySelector("#adr-after-change"), adr.afterHoursChangePercent);
+  text("#adr-offhours-label", adr.offHoursLabel || "盘前/盘后");
+  text("#adr-after-price", money(adr.offHoursPrice ?? adr.afterHoursPrice ?? adr.preMarketPrice, "USD"));
+  text("#adr-after-change", percent(adr.offHoursChangePercent ?? adr.afterHoursChangePercent ?? adr.preMarketChangePercent));
+  tone(document.querySelector("#adr-after-change"), adr.offHoursChangePercent ?? adr.afterHoursChangePercent ?? adr.preMarketChangePercent);
   text("#adr-meta", `正式盘 · ${adr.tradingMode === "when-issued" ? "When-issued" : "Regular-way"} · ${timeText(adr.regularTimestamp ?? adr.timestamp, "America/New_York", "ET")}`);
 
   text("#official-nav", money(navs.official?.value ?? data.officialNav?.hkdNav, "HKD"));

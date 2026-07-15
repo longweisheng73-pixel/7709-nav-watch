@@ -1110,6 +1110,10 @@ async function buildSnapshot() {
       afterHoursPrice: adrQuote.afterHoursPrice,
       afterHoursChangePercent: adrQuote.afterHoursChangePercent,
       afterHoursPremium: ratio(adrQuote.afterHoursPrice, theoreticalAdr),
+      offHoursPrice: adrQuote.offHoursPrice,
+      offHoursChangePercent: adrQuote.offHoursChangePercent,
+      offHoursPremium: ratio(adrQuote.offHoursPrice, theoreticalAdr),
+      offHoursLabel: adrQuote.offHoursLabel,
       note: "1 ADS = 0.1 股韩国普通股；SKHYV 为 when-issued，SKHY 为 regular-way。",
     },
     theoreticalNavBasis: {
@@ -2215,6 +2219,19 @@ function normalizeAdrQuote(source) {
     isFiniteNumber(point.close) && isFiniteNumber(postStart) && point.t >= postStart &&
     (!isFiniteNumber(postEnd) || point.t <= postEnd));
   const afterHours = postPoints.at(-1);
+  const pre = meta.currentTradingPeriod?.pre;
+  const preStart = isFiniteNumber(toNumber(pre?.start)) ? toNumber(pre.start) * 1000 : null;
+  const regularStart = isFiniteNumber(toNumber(meta.currentTradingPeriod?.regular?.start))
+    ? toNumber(meta.currentTradingPeriod.regular.start) * 1000
+    : null;
+  const prePoints = (quote.points || []).filter((point) =>
+    isFiniteNumber(point.close) && isFiniteNumber(preStart) && point.t >= preStart &&
+    (!isFiniteNumber(regularStart) || point.t < regularStart));
+  const preMarket = prePoints.at(-1);
+  const now = Date.now();
+  const inPreMarket = isFiniteNumber(preStart) && isFiniteNumber(regularStart) && now >= preStart && now < regularStart;
+  const inAfterHours = isFiniteNumber(postStart) && isFiniteNumber(postEnd) && now >= postStart && now <= postEnd;
+  const offHours = inPreMarket ? preMarket : inAfterHours ? afterHours : null;
 
   return {
     ...quote,
@@ -2227,6 +2244,13 @@ function normalizeAdrQuote(source) {
     afterHoursPrice: afterHours?.close ?? null,
     afterHoursTimestamp: afterHours?.t ?? null,
     afterHoursChangePercent: ratio(afterHours?.close, regularPrice),
+    preMarketPrice: preMarket?.close ?? null,
+    preMarketTimestamp: preMarket?.t ?? null,
+    preMarketChangePercent: ratio(preMarket?.close, regularPrice),
+    offHoursPrice: offHours?.close ?? null,
+    offHoursTimestamp: offHours?.t ?? null,
+    offHoursChangePercent: ratio(offHours?.close, regularPrice),
+    offHoursLabel: inPreMarket ? "盘前/隔夜" : inAfterHours ? "盘后/隔夜" : null,
     name: "SK hynix ADR",
     currency: "USD",
     source: "Yahoo Finance / Nasdaq",
